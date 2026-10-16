@@ -7,6 +7,7 @@ export interface Translation {
   appTitle: string;
   badge: string;
   settingsLink: string;
+  todayLink: string;
   savedLink: string;
   importLink: string;
   loading: string;
@@ -67,9 +68,10 @@ export interface Translation {
 
 export const translations: Record<Language, Translation> = {
   de: {
-    appTitle: 'KI-Küche',
+    appTitle: 'Mise',
     badge: 'Rezept des Tages',
     settingsLink: 'Einstellungen',
+    todayLink: 'Heute',
     savedLink: 'Gespeichert',
     importLink: 'Importieren',
     loading: 'Das heutige Rezept wird zubereitet …',
@@ -131,9 +133,10 @@ export const translations: Record<Language, Translation> = {
     backHome: 'Zurück zum Rezept',
   },
   en: {
-    appTitle: 'AI Kitchen',
+    appTitle: 'Mise',
     badge: 'Recipe of the Day',
     settingsLink: 'Settings',
+    todayLink: 'Today',
     savedLink: 'Saved',
     importLink: 'Import',
     loading: "Cooking up today's recipe …",
