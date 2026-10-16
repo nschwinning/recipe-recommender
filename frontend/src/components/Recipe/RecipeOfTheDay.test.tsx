@@ -4,13 +4,14 @@ import type { UseMutationResult, UseQueryResult } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import RecipeOfTheDay from './RecipeOfTheDay';
-import { useRecipeOfTheDay, useToggleLike } from '../../api/recipes';
+import { useRecipeOfTheDay, useToggleLike, useUpdateTags } from '../../api/recipes';
 import { translations } from '../../i18n/translations';
 import type { RecipeOfTheDay as Recipe } from '../../types/api';
 
 vi.mock('../../api/recipes', () => ({
   useRecipeOfTheDay: vi.fn(),
   useToggleLike: vi.fn(),
+  useUpdateTags: vi.fn(),
 }));
 
 // Pin the UI language to English so assertions are stable (no QueryClient needed).
@@ -20,16 +21,23 @@ vi.mock('../../i18n/useTranslation', () => ({
 
 const mockedHook = vi.mocked(useRecipeOfTheDay);
 const mockedToggle = vi.mocked(useToggleLike);
+const mockedUpdateTags = vi.mocked(useUpdateTags);
 
 const mutate = vi.fn();
+const mutateTags = vi.fn();
 
 beforeEach(() => {
   mutate.mockReset();
+  mutateTags.mockReset();
   mockedToggle.mockReturnValue({ mutate, isPending: false } as unknown as UseMutationResult<
     void,
     Error,
     boolean
   >);
+  mockedUpdateTags.mockReturnValue({
+    mutate: mutateTags,
+    isPending: false,
+  } as unknown as UseMutationResult<Recipe, Error, string[]>);
 });
 
 const sampleRecipe: Recipe = {
@@ -43,6 +51,7 @@ const sampleRecipe: Recipe = {
   servings: 4,
   ingredients: ['4 chicken thighs', '1 lemon'],
   steps: ['Sear the chicken.', 'Roast until done.'],
+  tags: ['quick', 'dinner'],
   language: 'en',
   generated_by: 'stub',
   created_at: '2026-10-15T00:00:00Z',
@@ -115,5 +124,33 @@ describe('RecipeOfTheDay', () => {
     await userEvent.setup().click(button);
     // Passes the current liked state (true → will unlike).
     expect(mutate).toHaveBeenCalledWith(true);
+  });
+
+  it('renders the tags and adds a new one', async () => {
+    mockedHook.mockReturnValue(queryResult({ data: sampleRecipe }));
+
+    render(<RecipeOfTheDay />);
+
+    expect(screen.getByText('quick')).toBeInTheDocument();
+    expect(screen.getByText('dinner')).toBeInTheDocument();
+
+    const user = userEvent.setup();
+    await user.type(screen.getByPlaceholderText(translations.en.addTagPlaceholder), 'vegan');
+    await user.click(screen.getByRole('button', { name: translations.en.addTag }));
+
+    // Sends the full next tag list (existing + new).
+    expect(mutateTags).toHaveBeenCalledWith(['quick', 'dinner', 'vegan']);
+  });
+
+  it('removes a tag when its remove button is clicked', async () => {
+    mockedHook.mockReturnValue(queryResult({ data: sampleRecipe }));
+
+    render(<RecipeOfTheDay />);
+
+    await userEvent
+      .setup()
+      .click(screen.getByRole('button', { name: translations.en.removeTag('quick') }));
+
+    expect(mutateTags).toHaveBeenCalledWith(['dinner']);
   });
 });

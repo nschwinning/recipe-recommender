@@ -50,3 +50,97 @@ def test_unlike_is_a_noop_when_not_liked(client: TestClient) -> None:
     response = client.delete("/api/v1/recipe-of-the-day/like")
     assert response.status_code == 204
     assert client.get("/api/v1/recipes").json() == []
+
+
+def test_recipe_of_the_day_exposes_ai_tags(client: TestClient) -> None:
+    body = client.get("/api/v1/recipe-of-the-day").json()
+    # The stub agent assigns tags; they surface on the read model.
+    assert body["tags"]
+
+
+def test_update_tags_normalizes_and_persists(client: TestClient) -> None:
+    client.get("/api/v1/recipe-of-the-day")
+
+    response = client.patch(
+        "/api/v1/recipe-of-the-day/tags",
+        json={"tags": ["  Vegan ", "", "vegan", "quick"]},
+    )
+    assert response.status_code == 200
+    # Blanks dropped, trimmed, case-insensitive dedupe (first spelling wins).
+    assert response.json()["tags"] == ["Vegan", "quick"]
+
+    # Persisted across reads.
+    assert client.get("/api/v1/recipe-of-the-day").json()["tags"] == ["Vegan", "quick"]
+
+
+def test_edited_tags_sync_to_saved_copy(client: TestClient) -> None:
+    client.get("/api/v1/recipe-of-the-day")
+    saved = client.post("/api/v1/recipe-of-the-day/like").json()
+
+    client.patch("/api/v1/recipe-of-the-day/tags", json={"tags": ["weeknight"]})
+
+    library = client.get("/api/v1/recipes").json()
+    assert len(library) == 1
+    assert library[0]["id"] == saved["id"]
+    assert library[0]["tags"] == ["weeknight"]
+
+
+PASTED_RECIPE = (
+    "Grandma's Tomato Soup\n"
+    "Ingredients:\n"
+    "2 ripe tomatoes\n"
+    "1 onion\n"
+    "Steps:\n"
+    "Chop everything.\n"
+    "Simmer for 20 minutes."
+)
+
+
+def test_parse_recipe_returns_structured_draft_without_saving(client: TestClient) -> None:
+    response = client.post("/api/v1/recipes/parse", json={"text": PASTED_RECIPE})
+    assert response.status_code == 200
+    draft = response.json()
+
+    assert draft["title"] == "Grandma's Tomato Soup"
+    assert draft["ingredients"] == ["2 ripe tomatoes", "1 onion"]
+    assert draft["steps"] == ["Chop everything.", "Simmer for 20 minutes."]
+    assert draft["generated_by"]  # provenance carried for the save step
+
+    # Parsing does not persist anything.
+    assert client.get("/api/v1/recipes").json() == []
+
+
+def test_parse_requires_non_empty_text(client: TestClient) -> None:
+    response = client.post("/api/v1/recipes/parse", json={"text": ""})
+    assert response.status_code == 422
+
+
+def test_create_recipe_saves_reviewed_draft_to_library(client: TestClient) -> None:
+    draft = client.post("/api/v1/recipes/parse", json={"text": PASTED_RECIPE}).json()
+
+    # The user reviews/edits the draft, then saves it.
+    payload = {
+        **draft,
+        "title": "Tomato Soup",  # edited during review
+        "tags": ["  Soup ", "soup", "comfort"],  # normalized on save
+        "source": "ai_parsed",
+    }
+    response = client.post("/api/v1/recipes", json=payload)
+    assert response.status_code == 201
+    saved = response.json()
+
+    assert saved["title"] == "Tomato Soup"
+    assert saved["source"] == "ai_parsed"
+    assert saved["ingredients"] == ["2 ripe tomatoes", "1 onion"]
+    assert saved["tags"] == ["Soup", "comfort"]
+
+    library = client.get("/api/v1/recipes").json()
+    assert [r["id"] for r in library] == [saved["id"]]
+
+
+def test_create_recipe_rejects_unknown_source(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/recipes",
+        json={"title": "X", "ingredients": [], "steps": [], "source": "bogus"},
+    )
+    assert response.status_code == 422

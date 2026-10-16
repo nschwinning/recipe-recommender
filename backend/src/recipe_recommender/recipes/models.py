@@ -31,6 +31,8 @@ class RecipeOfTheDay(Base):
     servings: Mapped[int | None] = mapped_column(Integer, nullable=True)
     ingredients: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
     steps: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    # Free-form labels (AI-assigned and/or user-edited), e.g. ["vegetarian", "quick"].
+    tags: Mapped[list[str]] = mapped_column(JSONB, nullable=False, server_default="[]")
     # Language the recipe text was generated in (e.g. "de", "en").
     language: Mapped[str] = mapped_column(String, nullable=False)
     generated_by: Mapped[str] = mapped_column(String, nullable=False)
@@ -60,6 +62,8 @@ class Recipe(Base):
     servings: Mapped[int | None] = mapped_column(Integer, nullable=True)
     ingredients: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
     steps: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    # Free-form labels (AI-assigned and/or user-edited) for organising/filtering.
+    tags: Mapped[list[str]] = mapped_column(JSONB, nullable=False, server_default="[]")
     # Language the recipe text is written in (e.g. "de", "en").
     language: Mapped[str] = mapped_column(String, nullable=False)
     # How this recipe entered the library (see recipes.constants.RECIPE_SOURCES).

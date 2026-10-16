@@ -9,15 +9,25 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
-from recipe_recommender.api.schemas import RecipeOfTheDayRead, RecipeRead
+from recipe_recommender.api.schemas import (
+    RecipeCreate,
+    RecipeDraftRead,
+    RecipeOfTheDayRead,
+    RecipeParseRequest,
+    RecipeRead,
+    RecipeTagsUpdate,
+)
 from recipe_recommender.config import settings
 from recipe_recommender.database import get_db
 from recipe_recommender.recipes.models import RecipeOfTheDay
 from recipe_recommender.recipes.service import (
+    create_recipe,
     get_or_create_recipe_of_the_day,
     get_saved_recipe_for_rotd,
     like_recipe_of_the_day,
     list_saved_recipes,
+    parse_recipe_text,
+    set_recipe_of_the_day_tags,
     unlike_recipe_of_the_day,
 )
 
@@ -74,6 +84,13 @@ def generate_recipe_of_the_day(
     return _rotd_read(db, recipe)
 
 
+@router.patch("/recipe-of-the-day/tags", response_model=RecipeOfTheDayRead)
+def update_today_tags(db: DbSession, body: RecipeTagsUpdate) -> RecipeOfTheDayRead:
+    """Replace today's recipe tags (syncing the saved copy if it has been liked)."""
+    recipe = set_recipe_of_the_day_tags(db, body.tags)
+    return _rotd_read(db, recipe)
+
+
 @router.post(
     "/recipe-of-the-day/like",
     response_model=RecipeRead,
@@ -95,3 +112,25 @@ def unlike_today(db: DbSession) -> None:
 def list_recipes(db: DbSession) -> list[RecipeRead]:
     """Return all saved recipes in the library, newest first."""
     return [RecipeRead.model_validate(recipe) for recipe in list_saved_recipes(db)]
+
+
+@router.post("/recipes/parse", response_model=RecipeDraftRead)
+def parse_recipe(db: DbSession, body: RecipeParseRequest) -> RecipeDraftRead:
+    """Parse pasted recipe text into a structured draft for the user to review.
+
+    The draft is NOT persisted; the user reviews/edits it and then saves it via
+    ``POST /recipes``.
+    """
+    parsed = parse_recipe_text(db, body.text, language=body.language)
+    return RecipeDraftRead(
+        **parsed.draft.model_dump(),
+        language=parsed.language,
+        generated_by=parsed.generated_by,
+    )
+
+
+@router.post("/recipes", response_model=RecipeRead, status_code=status.HTTP_201_CREATED)
+def create_recipe_endpoint(db: DbSession, body: RecipeCreate) -> RecipeRead:
+    """Save a reviewed recipe into the library (manual entry or AI-parsed text)."""
+    recipe = create_recipe(db, **body.model_dump())
+    return RecipeRead.model_validate(recipe)

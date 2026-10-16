@@ -39,6 +39,13 @@ class RecipeDraft(BaseModel):
         description="Ingredient lines, each with quantity, e.g. '200g spaghetti'"
     )
     steps: list[str] = Field(description="Ordered preparation steps")
+    tags: list[str] = Field(
+        default_factory=list,
+        description=(
+            "3-6 short labels describing the dish (dietary style, effort, meal "
+            "type, key ingredient), e.g. 'vegetarian', 'quick', 'comfort food'"
+        ),
+    )
 
 
 class RecipeAgent(Protocol):
@@ -46,6 +53,10 @@ class RecipeAgent(Protocol):
 
     def generate(self, recipe_date: date, language: str) -> RecipeDraft:
         """Produce a recipe for the given calendar day, written in ``language``."""
+        ...
+
+    def parse(self, text: str, language: str) -> RecipeDraft:
+        """Extract a structured recipe from free-form ``text``, in ``language``."""
         ...
 
     @property
@@ -61,6 +72,25 @@ _INSTRUCTIONS = (
     "Give exact ingredient quantities and clear, ordered steps."
 )
 
+_PARSE_INSTRUCTIONS = (
+    "You extract a single structured recipe from free-form text that a user pasted. "
+    "Identify the title, a short summary, the cuisine, prep and cook times in minutes, "
+    "the number of servings, the ingredient lines (each with quantities), and the "
+    "ordered preparation steps. Also suggest 3-6 short descriptive tags. Leave optional "
+    "fields empty when the text does not provide them, and never invent ingredients or "
+    "steps that are not present or clearly implied by the source text."
+)
+
+
+def _build_parse_prompt(text: str, language: str) -> str:
+    """Build the user prompt that asks the model to structure pasted recipe text."""
+    return (
+        "Extract a structured recipe from the text below. Write ALL text fields "
+        "(title, summary, cuisine, ingredients, steps, tags) in "
+        f"{_language_name(language)}, translating if the source is in another language.\n\n"
+        f"---\n{text}"
+    )
+
 
 def _language_name(language: str) -> str:
     """Human-readable language name for the prompt (fallback: the code itself)."""
@@ -72,8 +102,9 @@ def _build_prompt(recipe_date: date, language: str) -> str:
     return (
         f"Create the recipe of the day for {recipe_date.isoformat()} "
         f"({recipe_date.strftime('%A')}). Make it feel fresh and seasonal for this date. "
-        f"Write ALL text fields (title, summary, cuisine, ingredients, steps) in "
-        f"{_language_name(language)}."
+        f"Also provide 3-6 short descriptive tags (dietary style, effort, meal type, "
+        f"key ingredient). Write ALL text fields (title, summary, cuisine, ingredients, "
+        f"steps, tags) in {_language_name(language)}."
     )
 
 
@@ -89,23 +120,23 @@ class OpenAIRecipeAgent:
 
     def generate(self, recipe_date: date, language: str) -> RecipeDraft:
         """Synchronous seam over the async SDK, mirroring the cadence pattern."""
-        return asyncio.run(self._run(recipe_date, language))
+        return asyncio.run(self._run(_INSTRUCTIONS, _build_prompt(recipe_date, language)))
 
-    async def _run(self, recipe_date: date, language: str) -> RecipeDraft:
+    def parse(self, text: str, language: str) -> RecipeDraft:
+        """Structure pasted free-form recipe text into a :class:`RecipeDraft`."""
+        return asyncio.run(self._run(_PARSE_INSTRUCTIONS, _build_parse_prompt(text, language)))
+
+    async def _run(self, instructions: str, prompt: str) -> RecipeDraft:
         agent = build_agent(
             name=RECIPE_AGENT_NAME,
-            instructions=_INSTRUCTIONS,
+            instructions=instructions,
             output_type=RecipeDraft,
             model=self._model,
         )
         timeout = settings.RECIPE_AGENT_TIMEOUT_SECONDS
         try:
             result = await asyncio.wait_for(
-                Runner.run(
-                    agent,
-                    _build_prompt(recipe_date, language),
-                    max_turns=settings.RECIPE_MAX_TURNS,
-                ),
+                Runner.run(agent, prompt, max_turns=settings.RECIPE_MAX_TURNS),
                 timeout=timeout,
             )
         except TimeoutError as exc:
@@ -128,6 +159,47 @@ class StubRecipeAgent:
         if language == "de":
             return self._german(recipe_date)
         return self._english(recipe_date)
+
+    def parse(self, text: str, language: str) -> RecipeDraft:
+        """Deterministically structure pasted text with no network calls.
+
+        Uses a simple heuristic: the first line is the title, and lines are routed
+        into ingredients or steps by ``Ingredients:``/``Zutaten:`` and
+        ``Steps:``/``Zubereitung:`` section headers (steps by default).
+        """
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+        title = (
+            lines[0]
+            if lines
+            else ("Importiertes Rezept" if language == "de" else "Imported Recipe")
+        )
+
+        ingredient_headers = {"ingredients", "ingredients:", "zutaten", "zutaten:"}
+        step_headers = {"steps", "steps:", "method", "method:", "zubereitung", "zubereitung:"}
+        ingredients: list[str] = []
+        steps: list[str] = []
+        bucket = steps
+        for line in lines[1:]:
+            lowered = line.lower()
+            if lowered in ingredient_headers:
+                bucket = ingredients
+                continue
+            if lowered in step_headers:
+                bucket = steps
+                continue
+            bucket.append(line)
+
+        summary = (
+            "Aus eingefügtem Text importiert." if language == "de" else "Imported from pasted text."
+        )
+        return RecipeDraft(
+            title=title,
+            summary=summary,
+            cuisine=None,
+            ingredients=ingredients,
+            steps=steps,
+            tags=[],
+        )
 
     @staticmethod
     def _english(recipe_date: date) -> RecipeDraft:
@@ -158,6 +230,7 @@ class StubRecipeAgent:
                 "Transfer to a 200C oven and roast for 25 minutes until cooked through.",
                 "Rest for 5 minutes, then serve warm.",
             ],
+            tags=["one-pan", "high-protein", "dinner", "gluten-free"],
         )
 
     @staticmethod
@@ -192,6 +265,7 @@ class StubRecipeAgent:
                 "In den auf 200 °C vorgeheizten Ofen geben und 25 Minuten garen.",
                 "5 Minuten ruhen lassen und warm servieren.",
             ],
+            tags=["aus einer Pfanne", "proteinreich", "Abendessen", "glutenfrei"],
         )
 
 

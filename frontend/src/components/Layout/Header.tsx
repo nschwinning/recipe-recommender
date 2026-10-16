@@ -12,8 +12,14 @@ const Header = () => {
         <h1>{t.appTitle}</h1>
         <span className={classes.badge}>{t.badge}</span>
       </Link>
-      <nav>
-        <Link to="/settings" className={classes.settingsLink}>
+      <nav className={classes.nav}>
+        <Link to="/import" className={classes.navLink}>
+          {t.importLink}
+        </Link>
+        <Link to="/saved" className={classes.navLink}>
+          {t.savedLink}
+        </Link>
+        <Link to="/settings" className={classes.navLink}>
           {t.settingsLink}
         </Link>
       </nav>

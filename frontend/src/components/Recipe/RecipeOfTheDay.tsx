@@ -1,5 +1,7 @@
+import { useState } from 'react';
+
 import Card from '../UI/Card';
-import { useRecipeOfTheDay, useToggleLike } from '../../api/recipes';
+import { useRecipeOfTheDay, useToggleLike, useUpdateTags } from '../../api/recipes';
 import { useTranslation } from '../../i18n/useTranslation';
 import classes from './RecipeOfTheDay.module.css';
 
@@ -15,6 +17,8 @@ const RecipeOfTheDay = () => {
   const { data: recipe, isLoading, isError } = useRecipeOfTheDay();
   const { language, t } = useTranslation();
   const toggleLike = useToggleLike();
+  const updateTags = useUpdateTags();
+  const [newTag, setNewTag] = useState('');
 
   if (isLoading) {
     return (
@@ -40,6 +44,25 @@ const RecipeOfTheDay = () => {
   ].filter((item): item is string => Boolean(item));
 
   const liked = recipe.saved_recipe_id != null;
+  const tags = recipe.tags;
+
+  const addTag = () => {
+    const value = newTag.trim();
+    if (!value || updateTags.isPending) {
+      return;
+    }
+    // Case-insensitive guard against adding a tag that already exists.
+    if (!tags.some((tag) => tag.toLowerCase() === value.toLowerCase())) {
+      updateTags.mutate([...tags, value]);
+    }
+    setNewTag('');
+  };
+
+  const removeTag = (tag: string) => {
+    if (!updateTags.isPending) {
+      updateTags.mutate(tags.filter((item) => item !== tag));
+    }
+  };
 
   return (
     <section className={classes.wrapper}>
@@ -66,6 +89,49 @@ const RecipeOfTheDay = () => {
               ))}
             </ul>
           )}
+
+          <div className={classes.tagsSection}>
+            <span className={classes.tagsLabel}>{t.tagsLabel}</span>
+            <ul className={classes.tags}>
+              {tags.map((tag) => (
+                <li key={tag} className={classes.tag}>
+                  {tag}
+                  <button
+                    type="button"
+                    className={classes.tagRemove}
+                    onClick={() => removeTag(tag)}
+                    disabled={updateTags.isPending}
+                    aria-label={t.removeTag(tag)}
+                  >
+                    <span aria-hidden="true">×</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <form
+              className={classes.tagForm}
+              onSubmit={(event) => {
+                event.preventDefault();
+                addTag();
+              }}
+            >
+              <input
+                type="text"
+                className={classes.tagInput}
+                value={newTag}
+                onChange={(event) => setNewTag(event.target.value)}
+                placeholder={t.addTagPlaceholder}
+                aria-label={t.addTagPlaceholder}
+              />
+              <button
+                type="submit"
+                className={classes.tagAdd}
+                disabled={!newTag.trim() || updateTags.isPending}
+              >
+                {t.addTag}
+              </button>
+            </form>
+          </div>
 
           <div className={classes.columns}>
             <div>

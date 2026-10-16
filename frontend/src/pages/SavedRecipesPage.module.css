@@ -1,0 +1,126 @@
+.wrapper {
+  max-width: 54rem;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.status {
+  text-align: center;
+  color: #ffe9d6;
+  font-size: 1.1rem;
+  margin: 3rem auto;
+}
+
+.head {
+  text-align: center;
+}
+
+.title {
+  margin: 0;
+  color: #ffe9d6;
+  font-size: 2rem;
+  letter-spacing: -0.01em;
+}
+
+.intro {
+  margin: 0.4rem 0 0 0;
+  color: #f3d9c2;
+  font-size: 1rem;
+}
+
+.empty {
+  text-align: center;
+  color: #f3d9c2;
+  font-size: 1.05rem;
+  margin: 2rem auto;
+  max-width: 34rem;
+  line-height: 1.5;
+}
+
+/* Tag filter bar: a warm panel of toggle pills above the list. */
+.filter {
+  background-color: rgba(255, 233, 214, 0.08);
+  border: 1px solid rgba(255, 233, 214, 0.18);
+  border-radius: 1rem;
+  padding: 1.1rem 1.25rem;
+}
+
+.filterHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.filterLabel {
+  color: #ffe9d6;
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.clear {
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  color: #ffe9d6;
+  background-color: transparent;
+  border: none;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.filterTags {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.filterTag {
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #ffe9d6;
+  background-color: transparent;
+  border: 1px solid rgba(255, 233, 214, 0.45);
+  border-radius: 999px;
+  padding: 0.3rem 0.85rem;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.filterTag:hover {
+  border-color: #ffe9d6;
+}
+
+.filterTagActive {
+  color: #8a2b06;
+  background-color: #ffe9d6;
+  border-color: #ffe9d6;
+}
+
+.count {
+  margin: 0;
+  color: #f3d9c2;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}

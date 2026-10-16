@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import NamedTuple
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
@@ -12,13 +13,56 @@ from sqlalchemy.orm import Session
 from recipe_recommender.app_settings.service import get_language
 from recipe_recommender.config import settings
 from recipe_recommender.recipes.agent import RecipeAgent, RecipeDraft, get_recipe_agent
-from recipe_recommender.recipes.constants import SOURCE_RECIPE_OF_THE_DAY
+from recipe_recommender.recipes.constants import (
+    RECIPE_SOURCES,
+    SOURCE_MANUAL,
+    SOURCE_RECIPE_OF_THE_DAY,
+)
 from recipe_recommender.recipes.models import Recipe, RecipeOfTheDay
+
+# Guardrails for user/AI-supplied tag lists.
+_MAX_TAGS = 20
+_MAX_TAG_LENGTH = 40
+
+
+class ParsedRecipe(NamedTuple):
+    """A parsed-but-unsaved recipe plus the context needed to persist it later."""
+
+    draft: RecipeDraft
+    language: str
+    generated_by: str
+
+
+def _clean_lines(values: list[str]) -> list[str]:
+    """Trim each line and drop blanks, preserving order."""
+    return [cleaned for value in values if (cleaned := value.strip())]
 
 
 def today_in_app_tz() -> date:
     """Return the current calendar day in the configured recipe timezone."""
     return datetime.now(ZoneInfo(settings.RECIPE_TIMEZONE)).date()
+
+
+def normalize_tags(tags: list[str]) -> list[str]:
+    """Clean a tag list: trim, drop blanks, truncate, dedupe (case-insensitive).
+
+    Order is preserved and the first spelling of a duplicate wins. The result is
+    capped at ``_MAX_TAGS`` so neither the AI nor a user can bloat a recipe.
+    """
+    cleaned: list[str] = []
+    seen: set[str] = set()
+    for raw in tags:
+        tag = raw.strip()[:_MAX_TAG_LENGTH].strip()
+        if not tag:
+            continue
+        key = tag.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        cleaned.append(tag)
+        if len(cleaned) >= _MAX_TAGS:
+            break
+    return cleaned
 
 
 def get_recipe_for_date(session: Session, recipe_date: date) -> RecipeOfTheDay | None:
@@ -38,6 +82,7 @@ def _apply_draft(
     recipe.servings = draft.servings
     recipe.ingredients = draft.ingredients
     recipe.steps = draft.steps
+    recipe.tags = normalize_tags(draft.tags)
     recipe.language = language
     recipe.generated_by = generated_by
 
@@ -126,6 +171,7 @@ def like_recipe_of_the_day(session: Session, *, recipe_date: date | None = None)
         servings=source.servings,
         ingredients=list(source.ingredients),
         steps=list(source.steps),
+        tags=list(source.tags),
         language=source.language,
         source=SOURCE_RECIPE_OF_THE_DAY,
         generated_by=source.generated_by,
@@ -156,3 +202,87 @@ def unlike_recipe_of_the_day(session: Session, *, recipe_date: date | None = Non
     session.delete(saved)
     session.flush()
     return True
+
+
+def set_recipe_of_the_day_tags(
+    session: Session, tags: list[str], *, recipe_date: date | None = None
+) -> RecipeOfTheDay:
+    """Replace the tags on a day's recipe (and its saved copy, if liked).
+
+    Keeps the recipe of the day and any already-saved library copy in sync so the
+    user edits one set of tags regardless of whether they've liked the recipe yet.
+    """
+    recipe = get_or_create_recipe_of_the_day(session, recipe_date=recipe_date)
+    cleaned = normalize_tags(tags)
+    recipe.tags = cleaned
+
+    saved = get_saved_recipe_for_rotd(session, recipe.id)
+    if saved is not None:
+        saved.tags = list(cleaned)
+
+    session.flush()
+    return recipe
+
+
+def parse_recipe_text(
+    session: Session,
+    text: str,
+    *,
+    language: str | None = None,
+    agent: RecipeAgent | None = None,
+) -> ParsedRecipe:
+    """Parse free-form recipe text into a structured draft (without saving it).
+
+    The draft is meant to be reviewed and edited by the user before being saved
+    via :func:`create_recipe`. Tags are normalized so the review form starts clean.
+    """
+    lang = language or get_language(session)
+    agent = agent or get_recipe_agent()
+    draft = agent.parse(text, lang)
+    draft.tags = normalize_tags(draft.tags)
+    return ParsedRecipe(draft=draft, language=lang, generated_by=agent.generator_name)
+
+
+def create_recipe(
+    session: Session,
+    *,
+    title: str,
+    summary: str = "",
+    cuisine: str | None = None,
+    prep_minutes: int | None = None,
+    cook_minutes: int | None = None,
+    servings: int | None = None,
+    ingredients: list[str],
+    steps: list[str],
+    tags: list[str],
+    language: str | None = None,
+    source: str = SOURCE_MANUAL,
+    generated_by: str | None = None,
+) -> Recipe:
+    """Persist a new recipe in the reusable library.
+
+    Shared by the "add a recipe" flows (manual entry and AI-parsed text). Cleans
+    list fields, normalizes tags, and defaults the language to the app setting.
+    """
+    if source not in RECIPE_SOURCES:
+        raise ValueError(f"Unknown recipe source: {source!r}")
+
+    lang = language or get_language(session)
+    cuisine_value = cuisine.strip() if cuisine else ""
+    recipe = Recipe(
+        title=title.strip(),
+        summary=summary.strip(),
+        cuisine=cuisine_value or None,
+        prep_minutes=prep_minutes,
+        cook_minutes=cook_minutes,
+        servings=servings,
+        ingredients=_clean_lines(ingredients),
+        steps=_clean_lines(steps),
+        tags=normalize_tags(tags),
+        language=lang,
+        source=source,
+        generated_by=generated_by,
+    )
+    session.add(recipe)
+    session.flush()
+    return recipe
