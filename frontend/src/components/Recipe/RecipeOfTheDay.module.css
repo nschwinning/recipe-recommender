@@ -1,0 +1,87 @@
+.wrapper {
+  max-width: 60rem;
+  width: 90%;
+  margin: auto;
+}
+
+.status {
+  text-align: center;
+  color: white;
+  margin: 3rem auto;
+}
+
+.recipe {
+  padding: 2rem;
+}
+
+.date {
+  margin: 0;
+  color: #ad5502;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.85rem;
+}
+
+.title {
+  margin: 0.25rem 0 0.5rem 0;
+  color: #3f3f3f;
+  font-size: 2rem;
+}
+
+.summary {
+  margin: 0 0 1rem 0;
+  color: #4a4a4a;
+  font-style: italic;
+}
+
+.meta {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.5rem 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.meta li {
+  background-color: #ffe9d6;
+  color: #8a2b06;
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 2rem;
+  border-top: 1px solid #eee;
+  padding-top: 1.5rem;
+}
+
+.columns h3 {
+  color: #8a2b06;
+  margin: 0 0 0.75rem 0;
+}
+
+.ingredients,
+.steps {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: #3f3f3f;
+  line-height: 1.6;
+}
+
+.ingredients li,
+.steps li {
+  margin-bottom: 0.4rem;
+}
+
+@media (max-width: 640px) {
+  .columns {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}

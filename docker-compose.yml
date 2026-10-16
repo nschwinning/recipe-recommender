@@ -1,0 +1,86 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-recipe}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-recipe}
+      POSTGRES_DB: ${POSTGRES_DB:-recipe}
+    ports:
+      - "5436:5432" # host 5436 -> container 5432
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-recipe} -d ${POSTGRES_DB:-recipe}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://recipe:recipe@db:5432/recipe
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5175}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      RECIPE_MODEL: ${RECIPE_MODEL:-gpt-5-mini}
+      RECIPE_STUB: ${RECIPE_STUB:-}
+      RECIPE_TIMEZONE: ${RECIPE_TIMEZONE:-America/New_York}
+      RECIPE_CRON_TOKEN: ${RECIPE_CRON_TOKEN:-}
+    ports:
+      - "8003:8000" # host 8003 -> container 8000
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend/src:/app/src # live-mount for hot reload; venv baked in image
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn recipe_recommender.api.app:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/src"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  cron:
+    # busybox crond sidecar: generates today's recipe once per day by POSTing the
+    # cron-guarded generation endpoint with the shared X-Cron-Token.
+    image: alpine:3.20
+    environment:
+      TZ: ${CRON_TZ:-America/New_York}
+      RECIPE_SCHEDULE: ${RECIPE_SCHEDULE:-5 4 * * *}
+      RECIPE_CRON_TOKEN: ${RECIPE_CRON_TOKEN:-}
+    depends_on:
+      backend:
+        condition: service_healthy
+    command: >
+      sh -c "apk add --no-cache curl tzdata >/dev/null &&
+      cp /usr/share/zoneinfo/$${TZ} /etc/localtime 2>/dev/null || true;
+      printf %s \"$${RECIPE_CRON_TOKEN}\" > /tmp/cron.token &&
+      printf '%s\n'
+      '#!/bin/sh'
+      'set -eu'
+      'T=$$(cat /tmp/cron.token)'
+      'curl -fsS -X POST -H X-Cron-Token:$$T http://backend:8000/api/v1/recipe-of-the-day/generate >/dev/null'
+      > /usr/local/bin/generate-recipe.sh &&
+      chmod +x /usr/local/bin/generate-recipe.sh &&
+      echo \"$${RECIPE_SCHEDULE} /usr/local/bin/generate-recipe.sh\" > /etc/crontabs/root &&
+      crond -f -l 8"
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    environment:
+      VITE_PROXY_TARGET: http://backend:8000
+    ports:
+      - "5175:5173"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend/src:/app/src
+    restart: unless-stopped
+
+volumes:
+  pgdata:
