@@ -23,7 +23,7 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5175}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       RECIPE_MODEL: ${RECIPE_MODEL:-gpt-5-mini}
-      RECIPE_STUB: ${RECIPE_STUB:-}
+      RECIPE_STUB: ${RECIPE_STUB:-false}
       RECIPE_TIMEZONE: ${RECIPE_TIMEZONE:-America/New_York}
       RECIPE_CRON_TOKEN: ${RECIPE_CRON_TOKEN:-}
     ports:

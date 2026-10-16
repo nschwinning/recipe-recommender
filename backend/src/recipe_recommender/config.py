@@ -57,5 +57,17 @@ class Settings(BaseSettings):
             return [origin.strip() for origin in value.split(",") if origin.strip()]
         return value
 
+    @field_validator("RECIPE_STUB", mode="before")
+    @classmethod
+    def _blank_bool_is_false(cls, value: object) -> object:
+        """Treat an empty/blank string as False.
+
+        docker-compose renders an unset ``${RECIPE_STUB:-}`` as an empty string,
+        which pydantic cannot parse as a bool; coerce it to the default instead.
+        """
+        if isinstance(value, str) and value.strip() == "":
+            return False
+        return value
+
 
 settings = Settings()
