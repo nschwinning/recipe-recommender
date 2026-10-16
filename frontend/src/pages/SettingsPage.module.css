@@ -1,0 +1,98 @@
+.wrapper {
+  max-width: 40rem;
+  width: 90%;
+  margin: 0 auto;
+}
+
+.form {
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.title {
+  margin: 0 0 0.5rem 0;
+  color: #3f3f3f;
+  font-size: 1.75rem;
+}
+
+.intro {
+  margin: 0 0 1.5rem 0;
+  color: #4a4a4a;
+}
+
+.label {
+  color: #8a2b06;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.select {
+  font: inherit;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #d9c3b2;
+  border-radius: 0.5rem;
+  background-color: #fff;
+  color: #3f3f3f;
+}
+
+.select:focus {
+  outline: none;
+  border-color: #ad5502;
+  box-shadow: 0 0 0 2px rgba(173, 85, 2, 0.2);
+}
+
+.hint {
+  margin: 0.5rem 0 1.5rem 0;
+  color: #777;
+  font-size: 0.85rem;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.button {
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  color: white;
+  background-color: #8a2b06;
+  border: none;
+  border-radius: 999px;
+  padding: 0.6rem 1.5rem;
+  transition: background-color 0.15s ease;
+}
+
+.button:hover:not(:disabled) {
+  background-color: #ad5502;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.back {
+  color: #8a2b06;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.back:hover {
+  text-decoration: underline;
+}
+
+.success {
+  margin: 1rem 0 0 0;
+  color: #2f7a3d;
+  font-weight: 700;
+}
+
+.error {
+  margin: 1rem 0 0 0;
+  color: #b3261e;
+  font-weight: 700;
+}

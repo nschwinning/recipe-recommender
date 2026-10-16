@@ -22,12 +22,8 @@ class Settings(BaseSettings):
     APP_VERSION: str = "0.1.0"
 
     # Database (sync psycopg 3 driver)
-    DATABASE_URL: str = (
-        "postgresql+psycopg://recipe:recipe@localhost:5436/recipe"
-    )
-    TEST_DATABASE_URL: str = (
-        "postgresql+psycopg://recipe:recipe@localhost:5436/recipe_test"
-    )
+    DATABASE_URL: str = "postgresql+psycopg://recipe:recipe@localhost:5436/recipe"
+    TEST_DATABASE_URL: str = "postgresql+psycopg://recipe:recipe@localhost:5436/recipe_test"
 
     # CORS origins, parsed from a comma-separated env value
     CORS_ORIGINS: Annotated[list[str], NoDecode] = Field(

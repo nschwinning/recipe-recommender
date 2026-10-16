@@ -1,0 +1,10 @@
+/* Center page content below the fixed 5rem header, both horizontally and
+ * vertically, so the recipe card sits in the middle of the viewport. */
+.main {
+  min-height: 100vh;
+  padding: 7rem 1.5rem 4rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}

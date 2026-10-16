@@ -9,10 +9,17 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
-from recipe_recommender.api.schemas import RecipeOfTheDayRead
+from recipe_recommender.api.schemas import RecipeOfTheDayRead, RecipeRead
 from recipe_recommender.config import settings
 from recipe_recommender.database import get_db
-from recipe_recommender.recipes.service import get_or_create_recipe_of_the_day
+from recipe_recommender.recipes.models import RecipeOfTheDay
+from recipe_recommender.recipes.service import (
+    get_or_create_recipe_of_the_day,
+    get_saved_recipe_for_rotd,
+    like_recipe_of_the_day,
+    list_saved_recipes,
+    unlike_recipe_of_the_day,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -31,22 +38,26 @@ def require_valid_cron_token(
     non-empty ``RECIPE_CRON_TOKEN``.
     """
     expected = settings.RECIPE_CRON_TOKEN
-    if (
-        not expected
-        or not x_cron_token
-        or not hmac.compare_digest(x_cron_token, expected)
-    ):
+    if not expected or not x_cron_token or not hmac.compare_digest(x_cron_token, expected):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid or missing cron token",
         )
 
 
+def _rotd_read(db: Session, recipe: RecipeOfTheDay) -> RecipeOfTheDayRead:
+    """Build the read model, flagging whether this day's recipe has been liked."""
+    saved = get_saved_recipe_for_rotd(db, recipe.id)
+    read = RecipeOfTheDayRead.model_validate(recipe)
+    read.saved_recipe_id = saved.id if saved is not None else None
+    return read
+
+
 @router.get("/recipe-of-the-day", response_model=RecipeOfTheDayRead)
 def read_recipe_of_the_day(db: DbSession) -> RecipeOfTheDayRead:
     """Return today's recipe, generating it on demand if it does not exist yet."""
     recipe = get_or_create_recipe_of_the_day(db)
-    return RecipeOfTheDayRead.model_validate(recipe)
+    return _rotd_read(db, recipe)
 
 
 @router.post(
@@ -60,4 +71,27 @@ def generate_recipe_of_the_day(
 ) -> RecipeOfTheDayRead:
     """Cron-triggered daily generation. Idempotent: re-reads today's if present."""
     recipe = get_or_create_recipe_of_the_day(db)
-    return RecipeOfTheDayRead.model_validate(recipe)
+    return _rotd_read(db, recipe)
+
+
+@router.post(
+    "/recipe-of-the-day/like",
+    response_model=RecipeRead,
+    status_code=status.HTTP_200_OK,
+)
+def like_today(db: DbSession) -> RecipeRead:
+    """Save today's recipe to the reusable library. Idempotent per day."""
+    saved = like_recipe_of_the_day(db)
+    return RecipeRead.model_validate(saved)
+
+
+@router.delete("/recipe-of-the-day/like", status_code=status.HTTP_204_NO_CONTENT)
+def unlike_today(db: DbSession) -> None:
+    """Remove today's recipe from the library. No-op if it was never liked."""
+    unlike_recipe_of_the_day(db)
+
+
+@router.get("/recipes", response_model=list[RecipeRead])
+def list_recipes(db: DbSession) -> list[RecipeRead]:
+    """Return all saved recipes in the library, newest first."""
+    return [RecipeRead.model_validate(recipe) for recipe in list_saved_recipes(db)]

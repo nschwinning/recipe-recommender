@@ -5,6 +5,7 @@ Revises:
 Create Date: 2026-10-15 00:00:00.000000
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -54,7 +55,5 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Downgrade schema."""
-    op.drop_index(
-        op.f("ix_recipe_of_the_day_recipe_date"), table_name="recipe_of_the_day"
-    )
+    op.drop_index(op.f("ix_recipe_of_the_day_recipe_date"), table_name="recipe_of_the_day")
     op.drop_table("recipe_of_the_day")

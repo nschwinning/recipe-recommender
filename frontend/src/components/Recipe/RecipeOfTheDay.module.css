@@ -1,69 +1,148 @@
 .wrapper {
-  max-width: 60rem;
-  width: 90%;
-  margin: auto;
+  max-width: 54rem;
+  width: 100%;
+  margin: 0 auto;
 }
 
 .status {
   text-align: center;
-  color: white;
+  color: #ffe9d6;
+  font-size: 1.1rem;
+  letter-spacing: 0.01em;
   margin: 3rem auto;
 }
 
+/* The recipe card itself: a bright, elevated centerpiece floating on the
+ * dark page. A warm accent bar caps the top edge of the card. */
 .recipe {
-  padding: 2rem;
+  position: relative;
+  padding: 2.75rem 3rem 3rem 3rem;
+}
+
+.recipe::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: linear-gradient(90deg, #8a2b06, #ad5502);
+}
+
+/* "Save recipe" toggle pinned to the top-right corner of the card. */
+.like {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  color: #8a2b06;
+  background-color: #fff;
+  border: 1px solid #e3cdbb;
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.like span {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.like:hover:not(:disabled) {
+  background-color: #ffe9d6;
+  border-color: #ad5502;
+}
+
+.like:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.liked {
+  color: #fff;
+  background-color: #8a2b06;
+  border-color: #8a2b06;
+}
+
+.liked:hover:not(:disabled) {
+  background-color: #ad5502;
+  border-color: #ad5502;
 }
 
 .date {
   margin: 0;
+  padding-right: 9rem;
   color: #ad5502;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-size: 0.85rem;
+  letter-spacing: 0.12em;
+  font-size: 0.8rem;
 }
 
 .title {
-  margin: 0.25rem 0 0.5rem 0;
+  margin: 0.4rem 0 0.75rem 0;
   color: #3f3f3f;
-  font-size: 2rem;
+  font-size: 2.4rem;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
 }
 
 .summary {
-  margin: 0 0 1rem 0;
-  color: #4a4a4a;
+  margin: 0 0 1.5rem 0;
+  max-width: 44rem;
+  color: #5a5248;
   font-style: italic;
+  font-size: 1.1rem;
+  line-height: 1.5;
 }
 
 .meta {
   list-style: none;
   padding: 0;
-  margin: 0 0 1.5rem 0;
+  margin: 0 0 1.75rem 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.6rem;
 }
 
 .meta li {
   background-color: #ffe9d6;
   color: #8a2b06;
   border-radius: 999px;
-  padding: 0.25rem 0.75rem;
+  padding: 0.35rem 0.9rem;
   font-size: 0.85rem;
   font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
 .columns {
   display: grid;
   grid-template-columns: 1fr 1.4fr;
-  gap: 2rem;
-  border-top: 1px solid #eee;
-  padding-top: 1.5rem;
+  gap: 2.5rem;
+  border-top: 1px solid #f0e4d8;
+  padding-top: 1.75rem;
+}
+
+/* Subtle divider between the two columns on wide screens. */
+.columns > div + div {
+  padding-left: 2.5rem;
+  border-left: 1px solid #f0e4d8;
 }
 
 .columns h3 {
   color: #8a2b06;
-  margin: 0 0 0.75rem 0;
+  margin: 0 0 0.9rem 0;
+  font-size: 1.15rem;
+  letter-spacing: 0.01em;
 }
 
 .ingredients,
@@ -71,17 +150,41 @@
   margin: 0;
   padding-left: 1.25rem;
   color: #3f3f3f;
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
 .ingredients li,
 .steps li {
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.ingredients li::marker {
+  color: #ad5502;
+}
+
+.steps li::marker {
+  color: #ad5502;
+  font-weight: 700;
 }
 
 @media (max-width: 640px) {
+  .recipe {
+    padding: 2rem 1.5rem 2.25rem 1.5rem;
+  }
+
+  .title {
+    font-size: 1.9rem;
+  }
+
   .columns {
     grid-template-columns: 1fr;
-    gap: 1.5rem;
+    gap: 1.75rem;
+  }
+
+  .columns > div + div {
+    padding-left: 0;
+    border-left: none;
+    border-top: 1px solid #f0e4d8;
+    padding-top: 1.75rem;
   }
 }

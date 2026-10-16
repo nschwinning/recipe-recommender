@@ -21,12 +21,12 @@ class FakeRecipeAgent:
             ingredients=["200g spaghetti", "2 tbsp olive oil"],
             steps=["Boil pasta.", "Toss with oil."],
         )
-        self.calls: list[date] = []
+        self.calls: list[tuple[date, str]] = []
 
     @property
     def generator_name(self) -> str:
         return "fake"
 
-    def generate(self, recipe_date: date) -> RecipeDraft:
-        self.calls.append(recipe_date)
+    def generate(self, recipe_date: date, language: str) -> RecipeDraft:
+        self.calls.append((recipe_date, language))
         return self._draft

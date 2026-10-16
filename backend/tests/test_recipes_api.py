@@ -16,6 +16,8 @@ def test_get_recipe_of_the_day_generates_on_demand(client: TestClient) -> None:
     assert body["ingredients"]
     assert body["steps"]
     assert body["generated_by"] == "stub"
+    # Defaults to German until the language is changed via settings.
+    assert body["language"] == "de"
 
 
 def test_get_recipe_of_the_day_is_stable_within_a_day(client: TestClient) -> None:
@@ -30,9 +32,7 @@ def test_generate_requires_cron_token(client: TestClient) -> None:
     assert response.status_code == 403
 
 
-def test_generate_with_valid_token(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_generate_with_valid_token(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "RECIPE_CRON_TOKEN", "secret-token")
 
     response = client.post(

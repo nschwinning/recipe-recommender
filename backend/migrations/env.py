@@ -10,6 +10,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 # Import every domain's models so Alembic autogenerate sees them on Base.metadata.
+from recipe_recommender.app_settings import models as _app_settings_models  # noqa: F401
 from recipe_recommender.config import settings
 from recipe_recommender.database import Base
 from recipe_recommender.recipes import models as _recipes_models  # noqa: F401
