@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router-dom';
 
 import Header from './components/Layout/Header';
 import AddRecipePage from './pages/AddRecipePage';
+import GeneratePage from './pages/GeneratePage';
 import HomePage from './pages/HomePage';
 import SavedRecipesPage from './pages/SavedRecipesPage';
 import SettingsPage from './pages/SettingsPage';
@@ -15,6 +16,7 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/import" element={<AddRecipePage />} />
+          <Route path="/generate" element={<GeneratePage />} />
           <Route path="/saved" element={<SavedRecipesPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>

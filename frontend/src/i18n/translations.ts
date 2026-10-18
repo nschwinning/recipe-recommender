@@ -10,6 +10,8 @@ export interface Translation {
   todayLink: string;
   savedLink: string;
   importLink: string;
+  generateLink: string;
+  menu: string;
   loading: string;
   error: string;
   ingredients: string;
@@ -55,6 +57,15 @@ export interface Translation {
   savingRecipe: string;
   saveRecipeError: string;
   startOver: string;
+  generateTitle: string;
+  generateIntro: string;
+  promptLabel: string;
+  promptPlaceholder: string;
+  generateButton: string;
+  generating: string;
+  generateError: string;
+  addToRecipes: string;
+  tryAnother: string;
   settingsTitle: string;
   settingsIntro: string;
   languageLabel: string;
@@ -74,6 +85,8 @@ export const translations: Record<Language, Translation> = {
     todayLink: 'Heute',
     savedLink: 'Gespeichert',
     importLink: 'Importieren',
+    generateLink: 'Erstellen',
+    menu: 'Menü',
     loading: 'Das heutige Rezept wird zubereitet …',
     error: 'Beim Laden des heutigen Rezepts ist etwas schiefgelaufen.',
     ingredients: 'Zutaten',
@@ -121,6 +134,16 @@ export const translations: Record<Language, Translation> = {
     savingRecipe: 'Wird gespeichert …',
     saveRecipeError: 'Das Rezept konnte nicht gespeichert werden.',
     startOver: 'Neu beginnen',
+    generateTitle: 'Rezept erstellen',
+    generateIntro:
+      'Beschreibe, was du möchtest – z. B. „Ich habe Paprika und Brokkoli zu Hause, gib mir ein vegetarisches Rezept".',
+    promptLabel: 'Deine Anfrage',
+    promptPlaceholder: 'Was möchtest du kochen?',
+    generateButton: 'Rezept erstellen',
+    generating: 'Wird erstellt …',
+    generateError: 'Das Rezept konnte nicht erstellt werden. Bitte erneut versuchen.',
+    addToRecipes: 'Zu meinen Rezepten hinzufügen',
+    tryAnother: 'Neue Anfrage',
     settingsTitle: 'Einstellungen',
     settingsIntro:
       'Wähle die Sprache der App. Das heutige Rezept wird sofort in der neuen Sprache neu erstellt.',
@@ -139,6 +162,8 @@ export const translations: Record<Language, Translation> = {
     todayLink: 'Today',
     savedLink: 'Saved',
     importLink: 'Import',
+    generateLink: 'Create',
+    menu: 'Menu',
     loading: "Cooking up today's recipe …",
     error: "Something went wrong fetching today's recipe.",
     ingredients: 'Ingredients',
@@ -186,6 +211,16 @@ export const translations: Record<Language, Translation> = {
     savingRecipe: 'Saving …',
     saveRecipeError: 'Could not save the recipe.',
     startOver: 'Start over',
+    generateTitle: 'Create a recipe',
+    generateIntro:
+      'Describe what you want — e.g. "I have peppers and broccoli at home, give me a vegetarian recipe".',
+    promptLabel: 'Your request',
+    promptPlaceholder: 'What would you like to cook?',
+    generateButton: 'Generate recipe',
+    generating: 'Generating …',
+    generateError: 'Could not generate a recipe. Please try again.',
+    addToRecipes: 'Add to my recipes',
+    tryAnother: 'New request',
     settingsTitle: 'Settings',
     settingsIntro:
       "Choose the language of the app. Today's recipe will be regenerated immediately in the new language.",

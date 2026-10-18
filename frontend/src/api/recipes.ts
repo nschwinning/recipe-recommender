@@ -48,6 +48,12 @@ export async function parseRecipeText(text: string): Promise<RecipeDraft> {
   return data;
 }
 
+/** Generate a recipe from a free-form prompt (not yet saved). */
+export async function suggestRecipe(prompt: string): Promise<RecipeDraft> {
+  const { data } = await apiClient.post<RecipeDraft>('/api/v1/recipes/suggest', { prompt });
+  return data;
+}
+
 /** Save a reviewed recipe into the library. */
 export async function createRecipe(payload: RecipeCreate): Promise<Recipe> {
   const { data } = await apiClient.post<Recipe>('/api/v1/recipes', payload);
@@ -73,6 +79,11 @@ export function useSavedRecipes() {
 /** Mutation to parse pasted recipe text into a reviewable draft. */
 export function useParseRecipe() {
   return useMutation({ mutationFn: parseRecipeText });
+}
+
+/** Mutation to generate a recipe from a free-form prompt. */
+export function useSuggestRecipe() {
+  return useMutation({ mutationFn: suggestRecipe });
 }
 
 /** Mutation to save a reviewed recipe, refreshing the library on success. */

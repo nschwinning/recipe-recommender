@@ -144,3 +144,40 @@ def test_create_recipe_rejects_unknown_source(client: TestClient) -> None:
         json={"title": "X", "ingredients": [], "steps": [], "source": "bogus"},
     )
     assert response.status_code == 422
+
+
+def test_suggest_generates_recipe_from_prompt_without_saving(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/recipes/suggest",
+        json={"prompt": "Ich habe Paprika und Brokkoli, gib mir ein vegetarisches Rezept"},
+    )
+    assert response.status_code == 200
+    draft = response.json()
+
+    assert draft["title"]
+    assert draft["ingredients"]
+    assert draft["steps"]
+    assert draft["generated_by"]
+
+    # Suggesting does not persist anything.
+    assert client.get("/api/v1/recipes").json() == []
+
+
+def test_suggest_requires_non_empty_prompt(client: TestClient) -> None:
+    response = client.post("/api/v1/recipes/suggest", json={"prompt": ""})
+    assert response.status_code == 422
+
+
+def test_suggested_recipe_can_be_saved_as_ai_generated(client: TestClient) -> None:
+    draft = client.post(
+        "/api/v1/recipes/suggest",
+        json={"prompt": "something vegetarian"},
+    ).json()
+
+    response = client.post("/api/v1/recipes", json={**draft, "source": "ai_generated"})
+    assert response.status_code == 201
+    saved = response.json()
+    assert saved["source"] == "ai_generated"
+
+    library = client.get("/api/v1/recipes").json()
+    assert [r["id"] for r in library] == [saved["id"]]

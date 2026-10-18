@@ -75,6 +75,15 @@ class RecipeParseRequest(BaseModel):
     )
 
 
+class RecipeSuggestRequest(BaseModel):
+    """Request body to generate a recipe from a free-form user prompt."""
+
+    prompt: str = Field(..., min_length=1, description="What the user wants, in prose")
+    language: str | None = Field(
+        default=None, description="Target language code; defaults to the app language"
+    )
+
+
 class RecipeDraftRead(BaseModel):
     """A structured recipe parsed from text, returned for review before saving."""
 

@@ -59,6 +59,10 @@ class RecipeAgent(Protocol):
         """Extract a structured recipe from free-form ``text``, in ``language``."""
         ...
 
+    def suggest(self, prompt: str, language: str) -> RecipeDraft:
+        """Generate a recipe that answers the user's free-form ``prompt``."""
+        ...
+
     @property
     def generator_name(self) -> str:
         """Identifier recorded on the stored recipe (model id or ``stub``)."""
@@ -89,6 +93,25 @@ def _build_parse_prompt(text: str, language: str) -> str:
         "(title, summary, cuisine, ingredients, steps, tags) in "
         f"{_language_name(language)}, translating if the source is in another language.\n\n"
         f"---\n{text}"
+    )
+
+
+_SUGGEST_INSTRUCTIONS = (
+    "You are a helpful chef. The user describes what they want (ingredients they "
+    "have on hand, dietary needs, a craving, time constraints) and you respond with a "
+    "single recipe that best fits their request. Prefer the ingredients they mention, "
+    "honour any dietary or time constraints, and keep the recipe achievable for a home "
+    "cook with exact quantities and clear, ordered steps."
+)
+
+
+def _build_suggest_prompt(prompt: str, language: str) -> str:
+    """Build the user prompt that asks the model to answer a recipe request."""
+    return (
+        "Create one recipe that best answers the following request. Also provide 3-6 "
+        "short descriptive tags (dietary style, effort, meal type, key ingredient). "
+        "Write ALL text fields (title, summary, cuisine, ingredients, steps, tags) in "
+        f"{_language_name(language)}.\n\nRequest:\n{prompt}"
     )
 
 
@@ -125,6 +148,12 @@ class OpenAIRecipeAgent:
     def parse(self, text: str, language: str) -> RecipeDraft:
         """Structure pasted free-form recipe text into a :class:`RecipeDraft`."""
         return asyncio.run(self._run(_PARSE_INSTRUCTIONS, _build_parse_prompt(text, language)))
+
+    def suggest(self, prompt: str, language: str) -> RecipeDraft:
+        """Generate a recipe that answers the user's free-form request."""
+        return asyncio.run(
+            self._run(_SUGGEST_INSTRUCTIONS, _build_suggest_prompt(prompt, language))
+        )
 
     async def _run(self, instructions: str, prompt: str) -> RecipeDraft:
         agent = build_agent(
@@ -199,6 +228,32 @@ class StubRecipeAgent:
             ingredients=ingredients,
             steps=steps,
             tags=[],
+        )
+
+    def suggest(self, prompt: str, language: str) -> RecipeDraft:
+        """Return a fixed, language-appropriate suggestion with no network calls."""
+        if language == "de":
+            return RecipeDraft(
+                title="Schnelle Gemüsepfanne",
+                summary="Ein schnelles vegetarisches Gericht auf Basis deiner Anfrage.",
+                cuisine="Vegetarisch",
+                prep_minutes=10,
+                cook_minutes=15,
+                servings=2,
+                ingredients=["1 Paprika", "1 Brokkoli", "2 EL Olivenöl", "Salz und Pfeffer"],
+                steps=["Das Gemüse klein schneiden.", "In der Pfanne 10 Minuten braten."],
+                tags=["vegetarisch", "schnell"],
+            )
+        return RecipeDraft(
+            title="Quick Veggie Stir-Fry",
+            summary="A quick vegetarian dish based on your request.",
+            cuisine="Vegetarian",
+            prep_minutes=10,
+            cook_minutes=15,
+            servings=2,
+            ingredients=["1 bell pepper", "1 head broccoli", "2 tbsp olive oil", "Salt and pepper"],
+            steps=["Chop the vegetables.", "Stir-fry in the pan for 10 minutes."],
+            tags=["vegetarian", "quick"],
         )
 
     @staticmethod

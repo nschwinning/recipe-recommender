@@ -243,6 +243,25 @@ def parse_recipe_text(
     return ParsedRecipe(draft=draft, language=lang, generated_by=agent.generator_name)
 
 
+def suggest_recipe(
+    session: Session,
+    prompt: str,
+    *,
+    language: str | None = None,
+    agent: RecipeAgent | None = None,
+) -> ParsedRecipe:
+    """Generate a recipe that answers a free-form user prompt (without saving it).
+
+    Like :func:`parse_recipe_text`, the draft is returned for the user to review and
+    optionally save via :func:`create_recipe`.
+    """
+    lang = language or get_language(session)
+    agent = agent or get_recipe_agent()
+    draft = agent.suggest(prompt, lang)
+    draft.tags = normalize_tags(draft.tags)
+    return ParsedRecipe(draft=draft, language=lang, generated_by=agent.generator_name)
+
+
 def create_recipe(
     session: Session,
     *,

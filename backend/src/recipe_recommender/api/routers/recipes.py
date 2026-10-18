@@ -15,6 +15,7 @@ from recipe_recommender.api.schemas import (
     RecipeOfTheDayRead,
     RecipeParseRequest,
     RecipeRead,
+    RecipeSuggestRequest,
     RecipeTagsUpdate,
 )
 from recipe_recommender.config import settings
@@ -28,6 +29,7 @@ from recipe_recommender.recipes.service import (
     list_saved_recipes,
     parse_recipe_text,
     set_recipe_of_the_day_tags,
+    suggest_recipe,
     unlike_recipe_of_the_day,
 )
 
@@ -126,6 +128,21 @@ def parse_recipe(db: DbSession, body: RecipeParseRequest) -> RecipeDraftRead:
         **parsed.draft.model_dump(),
         language=parsed.language,
         generated_by=parsed.generated_by,
+    )
+
+
+@router.post("/recipes/suggest", response_model=RecipeDraftRead)
+def suggest_recipe_endpoint(db: DbSession, body: RecipeSuggestRequest) -> RecipeDraftRead:
+    """Generate a recipe from a free-form user prompt, for the user to review.
+
+    The draft is NOT persisted; the user reviews it and then saves it via
+    ``POST /recipes``.
+    """
+    suggested = suggest_recipe(db, body.prompt, language=body.language)
+    return RecipeDraftRead(
+        **suggested.draft.model_dump(),
+        language=suggested.language,
+        generated_by=suggested.generated_by,
     )
 
 

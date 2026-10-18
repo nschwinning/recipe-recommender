@@ -48,6 +48,28 @@
   gap: 1.75rem;
 }
 
+/* Hamburger toggle — hidden on desktop, shown on mobile. */
+.menuToggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  color: #ffe9d6;
+  background-color: transparent;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.menuToggle:hover {
+  color: #8a2b06;
+  background-color: #ffe9d6;
+}
+
 /* Plain text menu items with an underline that grows in on hover/active. */
 .menuLink {
   color: #ffe9d6;
@@ -100,14 +122,44 @@
   }
 
   .left {
-    gap: 1.25rem;
+    gap: 0.75rem;
   }
 
   .badge {
     display: none;
   }
 
+  /* Show the hamburger; hide the inline menu until toggled open. */
+  .menuToggle {
+    display: inline-flex;
+  }
+
   .menu {
-    gap: 1rem;
+    display: none;
+    position: absolute;
+    top: 5rem;
+    left: 0;
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    background-color: #8a2b06;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
+    padding: 0.5rem 0;
+  }
+
+  .menuOpen {
+    display: flex;
+  }
+
+  .menu .menuLink {
+    padding: 0.85rem 5%;
+    border-bottom: none;
+  }
+
+  .menu .menuLink:hover,
+  .menu .menuLinkActive {
+    background-color: #ad5502;
+    border-bottom: none;
   }
 }

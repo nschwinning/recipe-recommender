@@ -24,6 +24,7 @@ class FakeRecipeAgent:
         )
         self.calls: list[tuple[date, str]] = []
         self.parse_calls: list[tuple[str, str]] = []
+        self.suggest_calls: list[tuple[str, str]] = []
 
     @property
     def generator_name(self) -> str:
@@ -35,4 +36,8 @@ class FakeRecipeAgent:
 
     def parse(self, text: str, language: str) -> RecipeDraft:
         self.parse_calls.append((text, language))
+        return self._draft
+
+    def suggest(self, prompt: str, language: str) -> RecipeDraft:
+        self.suggest_calls.append((prompt, language))
         return self._draft
