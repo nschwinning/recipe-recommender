@@ -64,6 +64,9 @@ export interface Translation {
   generateButton: string;
   generating: string;
   generateError: string;
+  refinePlaceholder: string;
+  sendMessage: string;
+  youLabel: string;
   addToRecipes: string;
   tryAnother: string;
   settingsTitle: string;
@@ -75,6 +78,23 @@ export interface Translation {
   saved: string;
   saveError: string;
   backHome: string;
+  preferencesTitle: string;
+  preferencesIntro: string;
+  servingsLabel: string;
+  servingsHint: string;
+  servingsPlaceholder: string;
+  dietLabel: string;
+  dietHint: string;
+  dietName: (code: string) => string;
+  likedLabel: string;
+  likedHint: string;
+  dislikedLabel: string;
+  dislikedHint: string;
+  addIngredientPlaceholder: string;
+  addIngredientButton: string;
+  removeIngredient: (name: string) => string;
+  preferencesSaved: string;
+  preferencesSaveError: string;
 }
 
 export const translations: Record<Language, Translation> = {
@@ -142,6 +162,9 @@ export const translations: Record<Language, Translation> = {
     generateButton: 'Rezept erstellen',
     generating: 'Wird erstellt …',
     generateError: 'Das Rezept konnte nicht erstellt werden. Bitte erneut versuchen.',
+    refinePlaceholder: 'Verfeinern oder Änderungen vorschlagen …',
+    sendMessage: 'Senden',
+    youLabel: 'Du',
     addToRecipes: 'Zu meinen Rezepten hinzufügen',
     tryAnother: 'Neue Anfrage',
     settingsTitle: 'Einstellungen',
@@ -154,6 +177,25 @@ export const translations: Record<Language, Translation> = {
     saved: 'Einstellungen gespeichert.',
     saveError: 'Die Einstellungen konnten nicht gespeichert werden.',
     backHome: 'Zurück zum Rezept',
+    preferencesTitle: 'Koch-Vorlieben',
+    preferencesIntro:
+      'Diese Angaben steuern die KI beim Erstellen neuer Rezepte – im Chat und beim Rezept des Tages.',
+    servingsLabel: 'Anzahl Personen',
+    servingsHint: 'Für wie viele Portionen soll die KI Rezepte auslegen? Leer lassen für keine Vorgabe.',
+    servingsPlaceholder: 'z. B. 4',
+    dietLabel: 'Ernährung',
+    dietHint: 'Beschränkt die Rezepte auf die gewählte Ernährungsweise.',
+    dietName: (code) =>
+      code === 'vegetarian' ? 'Vegetarisch' : code === 'vegan' ? 'Vegan' : 'Keine Einschränkung',
+    likedLabel: 'Gemochte Zutaten',
+    likedHint: 'Die KI bevorzugt diese Zutaten, wenn es passt.',
+    dislikedLabel: 'Gemiedene Zutaten',
+    dislikedHint: 'Die KI vermeidet diese Zutaten.',
+    addIngredientPlaceholder: 'Zutat hinzufügen …',
+    addIngredientButton: 'Hinzufügen',
+    removeIngredient: (name) => `„${name}" entfernen`,
+    preferencesSaved: 'Vorlieben gespeichert.',
+    preferencesSaveError: 'Die Vorlieben konnten nicht gespeichert werden.',
   },
   en: {
     appTitle: 'Mise',
@@ -219,6 +261,9 @@ export const translations: Record<Language, Translation> = {
     generateButton: 'Generate recipe',
     generating: 'Generating …',
     generateError: 'Could not generate a recipe. Please try again.',
+    refinePlaceholder: 'Refine or ask for changes …',
+    sendMessage: 'Send',
+    youLabel: 'You',
     addToRecipes: 'Add to my recipes',
     tryAnother: 'New request',
     settingsTitle: 'Settings',
@@ -231,6 +276,25 @@ export const translations: Record<Language, Translation> = {
     saved: 'Settings saved.',
     saveError: 'Could not save settings.',
     backHome: 'Back to the recipe',
+    preferencesTitle: 'Cooking preferences',
+    preferencesIntro:
+      'These steer the AI when it creates new recipes — in the chat and for the recipe of the day.',
+    servingsLabel: 'Number of people',
+    servingsHint: 'How many servings should the AI target? Leave empty for no preference.',
+    servingsPlaceholder: 'e.g. 4',
+    dietLabel: 'Diet',
+    dietHint: 'Restricts recipes to the chosen way of eating.',
+    dietName: (code) =>
+      code === 'vegetarian' ? 'Vegetarian' : code === 'vegan' ? 'Vegan' : 'No restriction',
+    likedLabel: 'Liked ingredients',
+    likedHint: 'The AI favours these ingredients where it fits.',
+    dislikedLabel: 'Disliked ingredients',
+    dislikedHint: 'The AI avoids these ingredients.',
+    addIngredientPlaceholder: 'Add an ingredient …',
+    addIngredientButton: 'Add',
+    removeIngredient: (name) => `Remove "${name}"`,
+    preferencesSaved: 'Preferences saved.',
+    preferencesSaveError: 'Could not save preferences.',
   },
 };
 

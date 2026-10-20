@@ -10,9 +10,15 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from recipe_recommender.app_settings.service import get_language
+from recipe_recommender.app_settings.constants import DIET_NONE
+from recipe_recommender.app_settings.service import get_app_settings, get_language
 from recipe_recommender.config import settings
-from recipe_recommender.recipes.agent import RecipeAgent, RecipeDraft, get_recipe_agent
+from recipe_recommender.recipes.agent import (
+    RecipeAgent,
+    RecipeDraft,
+    RecipePreferences,
+    get_recipe_agent,
+)
 from recipe_recommender.recipes.constants import (
     RECIPE_SOURCES,
     SOURCE_MANUAL,
@@ -36,6 +42,18 @@ class ParsedRecipe(NamedTuple):
 def _clean_lines(values: list[str]) -> list[str]:
     """Trim each line and drop blanks, preserving order."""
     return [cleaned for value in values if (cleaned := value.strip())]
+
+
+def _current_preferences(session: Session) -> RecipePreferences:
+    """Read the stored cooking preferences for the AI prompt (diet 'none' → unset)."""
+    row = get_app_settings(session)
+    diet = row.diet if row.diet and row.diet != DIET_NONE else None
+    return RecipePreferences(
+        servings=row.servings,
+        diet=diet,
+        liked_ingredients=list(row.liked_ingredients),
+        disliked_ingredients=list(row.disliked_ingredients),
+    )
 
 
 def today_in_app_tz() -> date:
@@ -109,17 +127,18 @@ def get_or_create_recipe_of_the_day(
     lang = language or get_language(session)
     agent = agent or get_recipe_agent()
 
+    preferences = _current_preferences(session)
     existing = get_recipe_for_date(session, day)
     if existing is not None:
         if existing.language == lang:
             return existing
         # Language changed: regenerate today's recipe in the new language.
-        draft = agent.generate(day, lang)
+        draft = agent.generate(day, lang, preferences)
         _apply_draft(existing, draft, language=lang, generated_by=agent.generator_name)
         session.flush()
         return existing
 
-    draft = agent.generate(day, lang)
+    draft = agent.generate(day, lang, preferences)
     recipe = RecipeOfTheDay(recipe_date=day)
     _apply_draft(recipe, draft, language=lang, generated_by=agent.generator_name)
     session.add(recipe)
@@ -257,7 +276,28 @@ def suggest_recipe(
     """
     lang = language or get_language(session)
     agent = agent or get_recipe_agent()
-    draft = agent.suggest(prompt, lang)
+    draft = agent.suggest(prompt, lang, _current_preferences(session))
+    draft.tags = normalize_tags(draft.tags)
+    return ParsedRecipe(draft=draft, language=lang, generated_by=agent.generator_name)
+
+
+def refine_recipe(
+    session: Session,
+    message: str,
+    previous: RecipeDraft,
+    *,
+    language: str | None = None,
+    agent: RecipeAgent | None = None,
+) -> ParsedRecipe:
+    """Apply a free-form change request to an existing draft (without saving it).
+
+    Powers the iterative chat flow: the user keeps a recipe in hand and sends refinement
+    messages, each returning an updated draft to review and optionally save via
+    :func:`create_recipe`.
+    """
+    lang = language or get_language(session)
+    agent = agent or get_recipe_agent()
+    draft = agent.refine(message, previous, lang, _current_preferences(session))
     draft.tags = normalize_tags(draft.tags)
     return ParsedRecipe(draft=draft, language=lang, generated_by=agent.generator_name)
 

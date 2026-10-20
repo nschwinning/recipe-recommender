@@ -6,6 +6,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from recipe_recommender.app_settings.constants import DEFAULT_DIET
 from recipe_recommender.recipes.constants import RECIPE_SOURCES, SOURCE_MANUAL
 
 
@@ -84,6 +85,30 @@ class RecipeSuggestRequest(BaseModel):
     )
 
 
+class RecipeDraftInput(BaseModel):
+    """An in-progress recipe draft sent back by the client during a refine chat."""
+
+    title: str = Field(..., min_length=1)
+    summary: str = ""
+    cuisine: str | None = None
+    prep_minutes: int | None = Field(default=None, ge=0)
+    cook_minutes: int | None = Field(default=None, ge=0)
+    servings: int | None = Field(default=None, ge=0)
+    ingredients: list[str] = Field(default_factory=list)
+    steps: list[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
+
+
+class RecipeRefineRequest(BaseModel):
+    """Request body to refine an existing draft with a free-form change request."""
+
+    message: str = Field(..., min_length=1, description="The change the user wants")
+    previous: RecipeDraftInput = Field(..., description="The current recipe to refine")
+    language: str | None = Field(
+        default=None, description="Target language code; defaults to the app language"
+    )
+
+
 class RecipeDraftRead(BaseModel):
     """A structured recipe parsed from text, returned for review before saving."""
 
@@ -133,13 +158,29 @@ class LanguageOption(BaseModel):
 
 
 class AppSettingsRead(BaseModel):
-    """Current application settings plus the available language options."""
+    """Current application settings plus the available language and diet options."""
 
     language: str
     available_languages: list[LanguageOption]
+    # Cooking preferences that steer AI recipe generation.
+    servings: int | None
+    diet: str
+    liked_ingredients: list[str]
+    disliked_ingredients: list[str]
+    # Selectable diet codes; labels are localized in the frontend.
+    available_diets: list[str]
 
 
 class AppSettingsUpdate(BaseModel):
     """Request body to update application settings."""
 
     language: str = Field(..., min_length=2, description="Language code, e.g. 'de'")
+
+
+class CookingPreferencesUpdate(BaseModel):
+    """Request body to update the cooking preferences that steer AI generation."""
+
+    servings: int | None = Field(default=None, ge=1, le=50, description="Default people count")
+    diet: str = Field(default=DEFAULT_DIET, description="Diet code, e.g. 'vegetarian'")
+    liked_ingredients: list[str] = Field(default_factory=list)
+    disliked_ingredients: list[str] = Field(default_factory=list)

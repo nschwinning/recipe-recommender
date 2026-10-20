@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from recipe_recommender.recipes.agent import RecipeDraft
+from recipe_recommender.recipes.agent import RecipeDraft, RecipePreferences
 
 
 class FakeRecipeAgent:
@@ -25,19 +25,39 @@ class FakeRecipeAgent:
         self.calls: list[tuple[date, str]] = []
         self.parse_calls: list[tuple[str, str]] = []
         self.suggest_calls: list[tuple[str, str]] = []
+        self.refine_calls: list[tuple[str, RecipeDraft, str]] = []
+        # The preferences passed to the most recent generate/suggest/refine call.
+        self.last_preferences: RecipePreferences | None = None
 
     @property
     def generator_name(self) -> str:
         return "fake"
 
-    def generate(self, recipe_date: date, language: str) -> RecipeDraft:
+    def generate(
+        self, recipe_date: date, language: str, preferences: RecipePreferences | None = None
+    ) -> RecipeDraft:
         self.calls.append((recipe_date, language))
+        self.last_preferences = preferences
         return self._draft
 
     def parse(self, text: str, language: str) -> RecipeDraft:
         self.parse_calls.append((text, language))
         return self._draft
 
-    def suggest(self, prompt: str, language: str) -> RecipeDraft:
+    def suggest(
+        self, prompt: str, language: str, preferences: RecipePreferences | None = None
+    ) -> RecipeDraft:
         self.suggest_calls.append((prompt, language))
+        self.last_preferences = preferences
+        return self._draft
+
+    def refine(
+        self,
+        message: str,
+        previous: RecipeDraft,
+        language: str,
+        preferences: RecipePreferences | None = None,
+    ) -> RecipeDraft:
+        self.refine_calls.append((message, previous, language))
+        self.last_preferences = preferences
         return self._draft

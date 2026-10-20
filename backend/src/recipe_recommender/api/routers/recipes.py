@@ -15,11 +15,13 @@ from recipe_recommender.api.schemas import (
     RecipeOfTheDayRead,
     RecipeParseRequest,
     RecipeRead,
+    RecipeRefineRequest,
     RecipeSuggestRequest,
     RecipeTagsUpdate,
 )
 from recipe_recommender.config import settings
 from recipe_recommender.database import get_db
+from recipe_recommender.recipes.agent import RecipeDraft
 from recipe_recommender.recipes.models import RecipeOfTheDay
 from recipe_recommender.recipes.service import (
     create_recipe,
@@ -28,6 +30,7 @@ from recipe_recommender.recipes.service import (
     like_recipe_of_the_day,
     list_saved_recipes,
     parse_recipe_text,
+    refine_recipe,
     set_recipe_of_the_day_tags,
     suggest_recipe,
     unlike_recipe_of_the_day,
@@ -143,6 +146,22 @@ def suggest_recipe_endpoint(db: DbSession, body: RecipeSuggestRequest) -> Recipe
         **suggested.draft.model_dump(),
         language=suggested.language,
         generated_by=suggested.generated_by,
+    )
+
+
+@router.post("/recipes/refine", response_model=RecipeDraftRead)
+def refine_recipe_endpoint(db: DbSession, body: RecipeRefineRequest) -> RecipeDraftRead:
+    """Refine an in-progress recipe draft with a free-form change request.
+
+    Powers the iterative chat flow. The updated draft is NOT persisted; the user keeps
+    refining and then saves the result via ``POST /recipes``.
+    """
+    previous = RecipeDraft(**body.previous.model_dump())
+    refined = refine_recipe(db, body.message, previous, language=body.language)
+    return RecipeDraftRead(
+        **refined.draft.model_dump(),
+        language=refined.language,
+        generated_by=refined.generated_by,
     )
 
 

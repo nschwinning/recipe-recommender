@@ -48,10 +48,31 @@ class RecipeDraft(BaseModel):
     )
 
 
+class RecipePreferences(BaseModel):
+    """Standing cooking preferences that steer AI recipe generation."""
+
+    servings: int | None = None
+    # Restrictive diet word for the prompt ("vegetarian"/"vegan"); None = no restriction.
+    diet: str | None = None
+    liked_ingredients: list[str] = Field(default_factory=list)
+    disliked_ingredients: list[str] = Field(default_factory=list)
+
+    def is_empty(self) -> bool:
+        """True when no preference is set, so prompts can skip the clause entirely."""
+        return (
+            self.servings is None
+            and not self.diet
+            and not self.liked_ingredients
+            and not self.disliked_ingredients
+        )
+
+
 class RecipeAgent(Protocol):
     """Seam for recipe generation so tests can inject a fake."""
 
-    def generate(self, recipe_date: date, language: str) -> RecipeDraft:
+    def generate(
+        self, recipe_date: date, language: str, preferences: RecipePreferences | None = None
+    ) -> RecipeDraft:
         """Produce a recipe for the given calendar day, written in ``language``."""
         ...
 
@@ -59,8 +80,20 @@ class RecipeAgent(Protocol):
         """Extract a structured recipe from free-form ``text``, in ``language``."""
         ...
 
-    def suggest(self, prompt: str, language: str) -> RecipeDraft:
+    def suggest(
+        self, prompt: str, language: str, preferences: RecipePreferences | None = None
+    ) -> RecipeDraft:
         """Generate a recipe that answers the user's free-form ``prompt``."""
+        ...
+
+    def refine(
+        self,
+        message: str,
+        previous: RecipeDraft,
+        language: str,
+        preferences: RecipePreferences | None = None,
+    ) -> RecipeDraft:
+        """Return an updated recipe applying ``message`` to the ``previous`` draft."""
         ...
 
     @property
@@ -105,13 +138,62 @@ _SUGGEST_INSTRUCTIONS = (
 )
 
 
-def _build_suggest_prompt(prompt: str, language: str) -> str:
+def _build_suggest_prompt(
+    prompt: str, language: str, preferences: RecipePreferences | None = None
+) -> str:
     """Build the user prompt that asks the model to answer a recipe request."""
     return (
         "Create one recipe that best answers the following request. Also provide 3-6 "
         "short descriptive tags (dietary style, effort, meal type, key ingredient). "
         "Write ALL text fields (title, summary, cuisine, ingredients, steps, tags) in "
         f"{_language_name(language)}.\n\nRequest:\n{prompt}"
+        f"{_build_preferences_clause(preferences)}"
+    )
+
+
+_REFINE_INSTRUCTIONS = (
+    "You are a helpful chef refining a recipe together with the user. You are given "
+    "the current recipe and a change request. Return the FULL updated recipe with the "
+    "requested change applied, keeping everything the user did not ask to change. Keep "
+    "the recipe coherent and achievable, with exact quantities and clear, ordered steps."
+)
+
+
+def _render_recipe(draft: RecipeDraft) -> str:
+    """Render a draft as readable text to feed back into a refinement prompt."""
+    lines = [f"Title: {draft.title}", f"Summary: {draft.summary}"]
+    if draft.cuisine:
+        lines.append(f"Cuisine: {draft.cuisine}")
+    if draft.prep_minutes is not None:
+        lines.append(f"Prep minutes: {draft.prep_minutes}")
+    if draft.cook_minutes is not None:
+        lines.append(f"Cook minutes: {draft.cook_minutes}")
+    if draft.servings is not None:
+        lines.append(f"Servings: {draft.servings}")
+    lines.append("Ingredients:")
+    lines.extend(f"- {item}" for item in draft.ingredients)
+    lines.append("Steps:")
+    lines.extend(f"{index}. {step}" for index, step in enumerate(draft.steps, start=1))
+    if draft.tags:
+        lines.append(f"Tags: {', '.join(draft.tags)}")
+    return "\n".join(lines)
+
+
+def _build_refine_prompt(
+    message: str,
+    previous: RecipeDraft,
+    language: str,
+    preferences: RecipePreferences | None = None,
+) -> str:
+    """Build the user prompt that applies a change request to the current recipe."""
+    return (
+        "Here is the current recipe:\n\n"
+        f"{_render_recipe(previous)}\n\n"
+        "Apply the following change request and return the complete updated recipe. "
+        "Also provide 3-6 short descriptive tags. Write ALL text fields (title, summary, "
+        f"cuisine, ingredients, steps, tags) in {_language_name(language)}.\n\n"
+        f"Change request:\n{message}"
+        f"{_build_preferences_clause(preferences)}"
     )
 
 
@@ -120,7 +202,39 @@ def _language_name(language: str) -> str:
     return LANGUAGE_PROMPT_NAMES.get(language, language)
 
 
-def _build_prompt(recipe_date: date, language: str) -> str:
+def _build_preferences_clause(preferences: RecipePreferences | None) -> str:
+    """Render standing preferences as an instruction appended to a prompt (or '')."""
+    if preferences is None or preferences.is_empty():
+        return ""
+    lines: list[str] = []
+    if preferences.diet:
+        lines.append(f"- The recipe MUST be {preferences.diet}.")
+    if preferences.servings is not None:
+        lines.append(f"- Scale all quantities for {preferences.servings} servings.")
+    if preferences.liked_ingredients:
+        liked = ", ".join(preferences.liked_ingredients)
+        lines.append(f"- Favour these ingredients when they fit the dish: {liked}.")
+    if preferences.disliked_ingredients:
+        disliked = ", ".join(preferences.disliked_ingredients)
+        lines.append(f"- Do NOT use these ingredients: {disliked}.")
+    return "\n\nUser preferences (always honour these):\n" + "\n".join(lines)
+
+
+def _apply_preferences(draft: RecipeDraft, preferences: RecipePreferences | None) -> RecipeDraft:
+    """Deterministically reflect preferences in a stub draft (servings + diet tag)."""
+    if preferences is None or preferences.is_empty():
+        return draft
+    updates: dict[str, object] = {}
+    if preferences.servings is not None:
+        updates["servings"] = preferences.servings
+    if preferences.diet and preferences.diet not in draft.tags:
+        updates["tags"] = [preferences.diet, *draft.tags]
+    return draft.model_copy(update=updates)
+
+
+def _build_prompt(
+    recipe_date: date, language: str, preferences: RecipePreferences | None = None
+) -> str:
     """Build the per-day user prompt. The date seeds day-to-day variety."""
     return (
         f"Create the recipe of the day for {recipe_date.isoformat()} "
@@ -128,6 +242,7 @@ def _build_prompt(recipe_date: date, language: str) -> str:
         f"Also provide 3-6 short descriptive tags (dietary style, effort, meal type, "
         f"key ingredient). Write ALL text fields (title, summary, cuisine, ingredients, "
         f"steps, tags) in {_language_name(language)}."
+        f"{_build_preferences_clause(preferences)}"
     )
 
 
@@ -141,18 +256,39 @@ class OpenAIRecipeAgent:
     def generator_name(self) -> str:
         return self._model
 
-    def generate(self, recipe_date: date, language: str) -> RecipeDraft:
+    def generate(
+        self, recipe_date: date, language: str, preferences: RecipePreferences | None = None
+    ) -> RecipeDraft:
         """Synchronous seam over the async SDK, mirroring the cadence pattern."""
-        return asyncio.run(self._run(_INSTRUCTIONS, _build_prompt(recipe_date, language)))
+        return asyncio.run(
+            self._run(_INSTRUCTIONS, _build_prompt(recipe_date, language, preferences))
+        )
 
     def parse(self, text: str, language: str) -> RecipeDraft:
         """Structure pasted free-form recipe text into a :class:`RecipeDraft`."""
         return asyncio.run(self._run(_PARSE_INSTRUCTIONS, _build_parse_prompt(text, language)))
 
-    def suggest(self, prompt: str, language: str) -> RecipeDraft:
+    def suggest(
+        self, prompt: str, language: str, preferences: RecipePreferences | None = None
+    ) -> RecipeDraft:
         """Generate a recipe that answers the user's free-form request."""
         return asyncio.run(
-            self._run(_SUGGEST_INSTRUCTIONS, _build_suggest_prompt(prompt, language))
+            self._run(_SUGGEST_INSTRUCTIONS, _build_suggest_prompt(prompt, language, preferences))
+        )
+
+    def refine(
+        self,
+        message: str,
+        previous: RecipeDraft,
+        language: str,
+        preferences: RecipePreferences | None = None,
+    ) -> RecipeDraft:
+        """Apply a change request to an existing recipe and return the full result."""
+        return asyncio.run(
+            self._run(
+                _REFINE_INSTRUCTIONS,
+                _build_refine_prompt(message, previous, language, preferences),
+            )
         )
 
     async def _run(self, instructions: str, prompt: str) -> RecipeDraft:
@@ -183,11 +319,12 @@ class StubRecipeAgent:
     def generator_name(self) -> str:
         return STUB_GENERATOR
 
-    def generate(self, recipe_date: date, language: str) -> RecipeDraft:
+    def generate(
+        self, recipe_date: date, language: str, preferences: RecipePreferences | None = None
+    ) -> RecipeDraft:
         """Return a fixed, language-appropriate recipe with no network calls."""
-        if language == "de":
-            return self._german(recipe_date)
-        return self._english(recipe_date)
+        draft = self._german(recipe_date) if language == "de" else self._english(recipe_date)
+        return _apply_preferences(draft, preferences)
 
     def parse(self, text: str, language: str) -> RecipeDraft:
         """Deterministically structure pasted text with no network calls.
@@ -230,10 +367,12 @@ class StubRecipeAgent:
             tags=[],
         )
 
-    def suggest(self, prompt: str, language: str) -> RecipeDraft:
+    def suggest(
+        self, prompt: str, language: str, preferences: RecipePreferences | None = None
+    ) -> RecipeDraft:
         """Return a fixed, language-appropriate suggestion with no network calls."""
         if language == "de":
-            return RecipeDraft(
+            draft = RecipeDraft(
                 title="Schnelle Gemüsepfanne",
                 summary="Ein schnelles vegetarisches Gericht auf Basis deiner Anfrage.",
                 cuisine="Vegetarisch",
@@ -244,17 +383,45 @@ class StubRecipeAgent:
                 steps=["Das Gemüse klein schneiden.", "In der Pfanne 10 Minuten braten."],
                 tags=["vegetarisch", "schnell"],
             )
-        return RecipeDraft(
-            title="Quick Veggie Stir-Fry",
-            summary="A quick vegetarian dish based on your request.",
-            cuisine="Vegetarian",
-            prep_minutes=10,
-            cook_minutes=15,
-            servings=2,
-            ingredients=["1 bell pepper", "1 head broccoli", "2 tbsp olive oil", "Salt and pepper"],
-            steps=["Chop the vegetables.", "Stir-fry in the pan for 10 minutes."],
-            tags=["vegetarian", "quick"],
+        else:
+            draft = RecipeDraft(
+                title="Quick Veggie Stir-Fry",
+                summary="A quick vegetarian dish based on your request.",
+                cuisine="Vegetarian",
+                prep_minutes=10,
+                cook_minutes=15,
+                servings=2,
+                ingredients=[
+                    "1 bell pepper",
+                    "1 head broccoli",
+                    "2 tbsp olive oil",
+                    "Salt and pepper",
+                ],
+                steps=["Chop the vegetables.", "Stir-fry in the pan for 10 minutes."],
+                tags=["vegetarian", "quick"],
+            )
+        return _apply_preferences(draft, preferences)
+
+    def refine(
+        self,
+        message: str,
+        previous: RecipeDraft,
+        language: str,
+        preferences: RecipePreferences | None = None,
+    ) -> RecipeDraft:
+        """Deterministically echo the change request into the recipe, no network calls.
+
+        Keeps the previous recipe intact and records the request in the summary and as
+        a tag so callers (and tests) can see the refinement was applied.
+        """
+        note = f"Angepasst: {message}" if language == "de" else f"Refined: {message}"
+        refined = previous.model_copy(
+            update={
+                "summary": note,
+                "tags": [*previous.tags, message],
+            }
         )
+        return _apply_preferences(refined, preferences)
 
     @staticmethod
     def _english(recipe_date: date) -> RecipeDraft:

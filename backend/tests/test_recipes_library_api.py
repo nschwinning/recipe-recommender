@@ -181,3 +181,54 @@ def test_suggested_recipe_can_be_saved_as_ai_generated(client: TestClient) -> No
 
     library = client.get("/api/v1/recipes").json()
     assert [r["id"] for r in library] == [saved["id"]]
+
+
+def test_refine_applies_change_to_previous_draft_without_saving(client: TestClient) -> None:
+    draft = client.post(
+        "/api/v1/recipes/suggest",
+        json={"prompt": "something vegetarian", "language": "en"},
+    ).json()
+
+    response = client.post(
+        "/api/v1/recipes/refine",
+        json={"message": "make it vegan", "previous": draft, "language": "en"},
+    )
+    assert response.status_code == 200
+    refined = response.json()
+
+    # The stub keeps the body and records the change request.
+    assert refined["title"] == draft["title"]
+    assert refined["summary"] == "Refined: make it vegan"
+    assert "make it vegan" in refined["tags"]
+    assert refined["generated_by"]
+
+    # Refining does not persist anything.
+    assert client.get("/api/v1/recipes").json() == []
+
+
+def test_refine_requires_non_empty_message(client: TestClient) -> None:
+    draft = client.post(
+        "/api/v1/recipes/suggest",
+        json={"prompt": "something vegetarian"},
+    ).json()
+
+    response = client.post(
+        "/api/v1/recipes/refine",
+        json={"message": "", "previous": draft},
+    )
+    assert response.status_code == 422
+
+
+def test_refined_recipe_can_be_saved_as_ai_generated(client: TestClient) -> None:
+    draft = client.post(
+        "/api/v1/recipes/suggest",
+        json={"prompt": "something vegetarian"},
+    ).json()
+    refined = client.post(
+        "/api/v1/recipes/refine",
+        json={"message": "add more protein", "previous": draft},
+    ).json()
+
+    response = client.post("/api/v1/recipes", json={**refined, "source": "ai_generated"})
+    assert response.status_code == 201
+    assert response.json()["source"] == "ai_generated"

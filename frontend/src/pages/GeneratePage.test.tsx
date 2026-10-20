@@ -5,7 +5,7 @@ import type { UseMutationResult } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import GeneratePage from './GeneratePage';
-import { useCreateRecipe, useSuggestRecipe } from '../api/recipes';
+import { useCreateRecipe, useRefineRecipe, useSuggestRecipe } from '../api/recipes';
 import { translations } from '../i18n/translations';
 import type { Recipe, RecipeCreate, RecipeDraft } from '../types/api';
 
@@ -18,6 +18,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
 
 vi.mock('../api/recipes', () => ({
   useSuggestRecipe: vi.fn(),
+  useRefineRecipe: vi.fn(),
   useCreateRecipe: vi.fn(),
 }));
 
@@ -27,6 +28,7 @@ vi.mock('../i18n/useTranslation', () => ({
 }));
 
 const mockedSuggest = vi.mocked(useSuggestRecipe);
+const mockedRefine = vi.mocked(useRefineRecipe);
 const mockedCreate = vi.mocked(useCreateRecipe);
 
 const sampleDraft: RecipeDraft = {
@@ -43,8 +45,20 @@ const sampleDraft: RecipeDraft = {
   generated_by: 'stub',
 };
 
+const refinedDraft: RecipeDraft = {
+  ...sampleDraft,
+  title: 'Vegan Veggie Stir-Fry',
+  summary: 'Refined: make it vegan',
+};
+
 const suggestMutate = vi.fn((_prompt: string, opts?: { onSuccess?: (d: RecipeDraft) => void }) =>
   opts?.onSuccess?.(sampleDraft),
+);
+const refineMutate = vi.fn(
+  (
+    _vars: { message: string; previous: RecipeDraft },
+    opts?: { onSuccess?: (d: RecipeDraft) => void },
+  ) => opts?.onSuccess?.(refinedDraft),
 );
 const createMutate = vi.fn((_payload: RecipeCreate, opts?: { onSuccess?: (r: Recipe) => void }) =>
   opts?.onSuccess?.({} as Recipe),
@@ -58,6 +72,16 @@ function suggestHook(overrides: Record<string, unknown> = {}) {
     reset: vi.fn(),
     ...overrides,
   } as unknown as UseMutationResult<RecipeDraft, Error, string>;
+}
+
+function refineHook(overrides: Record<string, unknown> = {}) {
+  return {
+    mutate: refineMutate,
+    isPending: false,
+    isError: false,
+    reset: vi.fn(),
+    ...overrides,
+  } as unknown as UseMutationResult<RecipeDraft, Error, { message: string; previous: RecipeDraft }>;
 }
 
 function createHook(overrides: Record<string, unknown> = {}) {
@@ -81,13 +105,15 @@ function renderPage() {
 beforeEach(() => {
   navigate.mockReset();
   suggestMutate.mockClear();
+  refineMutate.mockClear();
   createMutate.mockClear();
   mockedSuggest.mockReturnValue(suggestHook());
+  mockedRefine.mockReturnValue(refineHook());
   mockedCreate.mockReturnValue(createHook());
 });
 
 describe('GeneratePage', () => {
-  it('generates a recipe from the prompt and renders the result', async () => {
+  it('generates a recipe from the first prompt and renders the result', async () => {
     renderPage();
     const user = userEvent.setup();
 
@@ -102,14 +128,38 @@ describe('GeneratePage', () => {
     expect(screen.getByText('1 bell pepper')).toBeInTheDocument();
   });
 
-  it('disables the generate button when the prompt is empty', () => {
+  it('refines the recipe when a follow-up message is sent', async () => {
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.type(
+      screen.getByPlaceholderText(translations.en.promptPlaceholder),
+      'something vegetarian',
+    );
+    await user.click(screen.getByRole('button', { name: translations.en.generateButton }));
+
+    // A follow-up refines the latest draft.
+    await user.type(
+      screen.getByPlaceholderText(translations.en.refinePlaceholder),
+      'make it vegan',
+    );
+    await user.click(screen.getByRole('button', { name: translations.en.sendMessage }));
+
+    expect(refineMutate).toHaveBeenCalledWith(
+      { message: 'make it vegan', previous: sampleDraft },
+      expect.anything(),
+    );
+    expect(screen.getByText('Vegan Veggie Stir-Fry')).toBeInTheDocument();
+  });
+
+  it('disables the send button when the input is empty', () => {
     renderPage();
     expect(
       screen.getByRole('button', { name: translations.en.generateButton }),
     ).toBeDisabled();
   });
 
-  it('saves the generated recipe as ai_generated and navigates to the library', async () => {
+  it('saves the latest recipe as ai_generated and navigates to the library', async () => {
     renderPage();
     const user = userEvent.setup();
 
@@ -135,9 +185,18 @@ describe('GeneratePage', () => {
     expect(navigate).toHaveBeenCalledWith('/saved');
   });
 
-  it('shows an error when generation fails', () => {
+  it('shows an error when generation fails', async () => {
     mockedSuggest.mockReturnValue(suggestHook({ isError: true }));
     renderPage();
+    const user = userEvent.setup();
+
+    // The error only surfaces once a conversation has started.
+    await user.type(
+      screen.getByPlaceholderText(translations.en.promptPlaceholder),
+      'something vegetarian',
+    );
+    await user.click(screen.getByRole('button', { name: translations.en.generateButton }));
+
     expect(screen.getByText(translations.en.generateError)).toBeInTheDocument();
   });
 });

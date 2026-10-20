@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { apiClient } from './client';
 import { recipeKeys } from './recipes';
-import type { AppSettings } from '../types/api';
+import type { AppSettings, CookingPreferencesUpdate } from '../types/api';
 
 /** Typed query keys for settings queries. */
 export const settingsKeys = {
@@ -18,6 +18,14 @@ export async function getAppSettings(): Promise<AppSettings> {
 /** Update the application language; the backend regenerates today's recipe. */
 export async function updateLanguage(language: string): Promise<AppSettings> {
   const { data } = await apiClient.put<AppSettings>('/api/v1/settings', { language });
+  return data;
+}
+
+/** Update the cooking preferences that steer AI recipe generation. */
+export async function updatePreferences(
+  payload: CookingPreferencesUpdate,
+): Promise<AppSettings> {
+  const { data } = await apiClient.put<AppSettings>('/api/v1/settings/preferences', payload);
   return data;
 }
 
@@ -40,6 +48,21 @@ export function useUpdateLanguage() {
     onSuccess: (data) => {
       queryClient.setQueryData(settingsKeys.all, data);
       queryClient.invalidateQueries({ queryKey: recipeKeys.ofTheDay });
+    },
+  });
+}
+
+/**
+ * Mutation to update the cooking preferences. These influence future AI
+ * generations, so only the settings cache needs refreshing — today's recipe
+ * is deliberately left untouched.
+ */
+export function useUpdatePreferences() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updatePreferences,
+    onSuccess: (data) => {
+      queryClient.setQueryData(settingsKeys.all, data);
     },
   });
 }

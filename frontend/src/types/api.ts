@@ -81,4 +81,19 @@ export interface LanguageOption {
 export interface AppSettings {
   language: string;
   available_languages: LanguageOption[];
+  /** Cooking preferences that steer AI recipe generation. */
+  servings: number | null;
+  diet: string;
+  liked_ingredients: string[];
+  disliked_ingredients: string[];
+  /** Selectable diet codes; labels are localized in the frontend. */
+  available_diets: string[];
+}
+
+/** Payload to update the cooking preferences that steer AI generation. */
+export interface CookingPreferencesUpdate {
+  servings: number | null;
+  diet: string;
+  liked_ingredients: string[];
+  disliked_ingredients: string[];
 }

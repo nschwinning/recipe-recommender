@@ -54,6 +54,18 @@ export async function suggestRecipe(prompt: string): Promise<RecipeDraft> {
   return data;
 }
 
+/** Refine an in-progress recipe draft with a free-form change request (not yet saved). */
+export async function refineRecipe(
+  message: string,
+  previous: RecipeDraft,
+): Promise<RecipeDraft> {
+  const { data } = await apiClient.post<RecipeDraft>('/api/v1/recipes/refine', {
+    message,
+    previous,
+  });
+  return data;
+}
+
 /** Save a reviewed recipe into the library. */
 export async function createRecipe(payload: RecipeCreate): Promise<Recipe> {
   const { data } = await apiClient.post<Recipe>('/api/v1/recipes', payload);
@@ -84,6 +96,14 @@ export function useParseRecipe() {
 /** Mutation to generate a recipe from a free-form prompt. */
 export function useSuggestRecipe() {
   return useMutation({ mutationFn: suggestRecipe });
+}
+
+/** Mutation to refine an in-progress draft with a change request. */
+export function useRefineRecipe() {
+  return useMutation({
+    mutationFn: ({ message, previous }: { message: string; previous: RecipeDraft }) =>
+      refineRecipe(message, previous),
+  });
 }
 
 /** Mutation to save a reviewed recipe, refreshing the library on success. */

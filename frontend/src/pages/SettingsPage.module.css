@@ -2,6 +2,9 @@
   max-width: 40rem;
   width: 90%;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
 .form {
@@ -46,6 +49,92 @@
   margin: 0.5rem 0 1.5rem 0;
   color: #777;
   font-size: 0.85rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+}
+
+.input {
+  font: inherit;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #d9c3b2;
+  border-radius: 0.5rem;
+  background-color: #fff;
+  color: #3f3f3f;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #ad5502;
+  box-shadow: 0 0 0 2px rgba(173, 85, 2, 0.2);
+}
+
+.chips {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.5rem 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background-color: #ffe9d6;
+  color: #6b3a12;
+  border-radius: 999px;
+  padding: 0.3rem 0.4rem 0.3rem 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.chipRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border: none;
+  border-radius: 999px;
+  background-color: rgba(138, 43, 6, 0.15);
+  color: #8a2b06;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chipRemove:hover {
+  background-color: rgba(138, 43, 6, 0.3);
+}
+
+.chipAdd {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.chipAdd .input {
+  flex: 1;
+}
+
+.secondary {
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  color: #8a2b06;
+  background-color: #fff;
+  border: 1px solid #d9c3b2;
+  border-radius: 999px;
+  padding: 0.6rem 1.25rem;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.secondary:hover {
+  border-color: #ad5502;
+  color: #ad5502;
 }
 
 .actions {

@@ -9,3 +9,7 @@ class AppSettingsError(Exception):
 
 class UnsupportedLanguageError(AppSettingsError):
     """Raised when an unsupported language code is requested."""
+
+
+class UnsupportedDietError(AppSettingsError):
+    """Raised when an unsupported diet code is requested."""
